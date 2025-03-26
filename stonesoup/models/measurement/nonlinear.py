@@ -424,6 +424,63 @@ class CartesianToBearingRange(_AngleNonLinearGaussianMeasurement, ReversibleMode
     def _typed_vector():
         return np.array([[Bearing(0)], [0.]])
 
+    def jacobian(self, state, **kwargs):
+        """Model jacobian matrix :math:`H_{jac}`
+
+        Parameters
+        ----------
+        state : :class:`~.State`
+            An input state
+
+        Returns
+        -------
+        :class:`numpy.ndarray` of shape (:py:attr:`~ndim_meas`, \
+        :py:attr:`~ndim_state`)
+            The model jacobian matrix evaluated around the given state vector.
+        """
+        # Account for origin offset in position to enable range and angles to be determined
+        xy_pos = state.state_vector[self.mapping, :] - self.translation_offset
+
+        # Rotate into RADAR coordinate system to linearize around the correct
+        # state
+        # xy_pos = self.rotation_matrix @ xy_pos
+
+        jac = np.zeros((2, self.ndim_state), dtype=np.float64)
+
+        x, y = xy_pos
+        x2, y2 = x**2, y**2
+        x2y2 = x2 + y2
+        r = sqrt(x2y2)
+
+        # Jacobian encodes partial derivatives of measurement vector components
+        # Y = <phi, r> against state vector
+        # X = <x, vx, y, vy>
+
+
+        # dphi/dx
+        jac[0, self.mapping[0]] = - y/(x2y2)
+
+        # dphi/dy
+        jac[0, self.mapping[1]] = x/(x2y2)
+
+        # dr/dx
+        jac[1, self.mapping[0]] = x/r
+
+        # dr/dy
+        jac[1, self.mapping[1]] = y/r
+
+
+
+        # Up to this point, the Jacobian has been with respect to the state
+        # vector after rotating into the RADAR coordinate system. However, we
+        # want the Jacobian with respect to world state vector, so we must post
+        # multiply Jacobian by the RADAR rotation matrix.
+        jac[:, self.mapping] = jac[:, self.mapping]# @ self.rotation_matrix
+
+        return jac
+
+
+
 
 class CartesianToElevationBearing(_AngleNonLinearGaussianMeasurement):
     r"""This is a class implementation of a time-invariant measurement model, \

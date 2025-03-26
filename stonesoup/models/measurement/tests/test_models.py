@@ -989,6 +989,47 @@ def test_rangeratemodels_with_particles(h, modelclass, state_vec, ndim_state, po
             cov=noise_covar)
 
 
+def test_bearingrange_analytic_jacobian():
+    """Test the analytic Jacobian of CartesianToBearingRange.
+
+    """
+    noise_covar = np.zeros((4, 4))
+    mapping = np.array([0, 2])
+    measure_model1 = CartesianToBearingRange(
+        ndim_state=4, mapping=mapping,
+        noise_covar=noise_covar)
+
+    measure_model2 = CartesianToBearingRange(
+        ndim_state=4, mapping=mapping,
+        noise_covar=noise_covar,
+        translation_offset=StateVector([[-30], [50]]),
+        # rotation_offset=np.array([[-0.4], [-0.5], [-0.2]])
+        )
+
+    measure_model3 = CartesianToBearingRange(
+        ndim_state=4, mapping=mapping,
+        noise_covar=noise_covar,
+        translation_offset=StateVector([[-330], [-350]]),
+        # rotation_offset=np.array([[0.1], [0.25], [0.75]])
+        )
+
+    for state in [State(StateVectors([[1], [2], [3], [4]])),
+                  State(StateVectors([[-20], [2], [3.46], [4]])),
+                  State(StateVectors([[100], [46], [-3.5], [-184]])),
+                  State(StateVectors([[31.02], [2.156], [-13], [4]])),
+                  State(StateVectors([[142], [-23], [43], [-1.4]]))]:
+
+        for measure_model in [measure_model1, measure_model2, measure_model3]:
+            # Calculate numerically
+            jac0 = compute_jac(measure_model.function, state)
+
+            # Calculate using the analytic expression
+            jac = measure_model.jacobian(state)
+
+            # Not going to be exact since jac0 is an approximation
+            assert np.allclose(jac, jac0, atol=5e-4, rtol=1e-5)
+
+
 def test_rangeratemodel_analytic_jacobian():
     """Test the analytic Jacobian of CartesianToElevationBearingRangeRate.
 
